@@ -1,0 +1,22 @@
+[package]
+name = "wwm_utils"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "wwm_utils"
+path = "src/main.rs"
+
+[build-dependencies]
+embed-manifest = "1.4.0"
+winresource = "0.1.23"
+
+[dependencies]
+walkdir = "2.5.0"
+zstd = "0.13.3"
+bstr = "1.12.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+bytemuck = { version = "1.24.0", features = ["derive"] }
+
+porter-utils = { path = "../porter-lib/crates/porter-utils" }
