@@ -34,3 +34,4 @@ rustfmt.toml
 
 # Project generated files
 /output/
+._*

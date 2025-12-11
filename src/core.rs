@@ -3,9 +3,11 @@ use crate::structs::*;
 
 const OUTPUT_DIR: &str = "output";
 const TABLE_DIR: &str = "tables";
+const TEXT_DIR: &str = "text";
 const MODIFIED_DIR: &str = "modified";
 const MERGED_DIR: &str = "merged";
 const ENTRIES_FILE: &str = "entries.json";
+const ENTRIES_PER_SHARD: usize = 265;
 
 pub fn unpack_map<P: AsRef<Path>>(path: P) {
     let path = path.as_ref();
@@ -113,6 +115,7 @@ pub fn unpack_map<P: AsRef<Path>>(path: P) {
         }
     }
 
+    // Save entries.json (single file with all entries)
     {
         let output_path = Path::new(&output_dir).join(ENTRIES_FILE);
 
@@ -123,6 +126,32 @@ pub fn unpack_map<P: AsRef<Path>>(path: P) {
 
         let bytes = serde_json::to_vec_pretty(&json).unwrap();
         writer.write_all(&bytes).unwrap();
+    }
+
+    // Save text/ directory with sharded JSON files
+    {
+        let text_dir = output_dir.join(TEXT_DIR);
+        fs::create_dir_all(&text_dir).unwrap();
+
+        let entries: Vec<_> = string_map.iter().collect();
+        let shard_count = (entries.len() + ENTRIES_PER_SHARD - 1) / ENTRIES_PER_SHARD;
+
+        for shard_idx in 0..shard_count {
+            let start = shard_idx * ENTRIES_PER_SHARD;
+            let end = (start + ENTRIES_PER_SHARD).min(entries.len());
+            
+            let shard_entries: HashMap<&u64, &String> = entries[start..end]
+                .iter()
+                .map(|(k, v)| (*k, *v))
+                .collect();
+
+            let shard_path = text_dir.join(format!("{:05}.json", shard_idx + 1));
+            let mut writer = File::create(&shard_path).unwrap().buffer_write();
+            
+            let json = json!(shard_entries);
+            let bytes = serde_json::to_vec_pretty(&json).unwrap();
+            writer.write_all(&bytes).unwrap();
+        }
     }
 
     println!("Unpacked: `{}`", path.display());

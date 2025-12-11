@@ -9,7 +9,8 @@ mod utils;
 
 // TODO: Use results instead of unwraps and panics
 fn main() {
-    utils::set_cwd_to_exe_dir().unwrap();
+    // Don't change CWD - let caller control where output goes
+    // utils::set_cwd_to_exe_dir().unwrap();
 
     let mut args = env::args();
 
@@ -34,6 +35,5 @@ fn main() {
         }
     }
 
-    println!("Done! Press any key to exit...");
-    let _ = io::stdin().read(&mut [0u8]).unwrap();
+    println!("Done!");
 }
