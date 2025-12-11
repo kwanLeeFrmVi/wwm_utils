@@ -84,7 +84,8 @@ pub fn unpack_map<P: AsRef<Path>>(path: P) {
                                     eprintln!("Duplicate string id found: {:#x}", id);
                                 }
                             } else {
-                                eprintln!("Skipped invalid string at id: {:#x}", id);
+                                // Map 0xFF entries to empty string
+                                string_map.insert(id, String::new());
                             }
                         }
 
@@ -143,6 +144,10 @@ pub fn pack_map<P: AsRef<Path>>(dir_path: P) {
         .into_iter()
         .filter_map(|result| result.ok())
         .filter(|entry| entry.file_type().is_file())
+        .filter(|entry| {
+            let file_name = entry.file_name().to_str().unwrap_or("");
+            entry.file_type().is_file() && !file_name.starts_with(".")
+        })
         .collect::<Vec<_>>();
 
     // Sort the file indices from 0 to n
@@ -202,30 +207,40 @@ pub fn pack_map<P: AsRef<Path>>(dir_path: P) {
 
                 if id > 0 && entry.length > 0 {
                     let value_pos = cur_entry_pos + 8 + entry.offset as u64;
-                    let byte = reader.read_struct_at::<u8>(value_pos).unwrap();
-
+                    
                     let offset = (table_entries.len() - entry_idx) * size_of::<TableEntry>() - 8
                         + new_values.len();
-
-                    if byte != 0xFF {
-                        let value = entries_map.get(&id).unwrap().clone();
-
-                        // Test
-                        // let value = "ฅ^•ﻌ•^ฅ";
-
-                        new_entry.offset = offset as u32;
-                        new_entry.length = value.len() as u32;
-
-                        new_values.extend(value.as_bytes());
+                    
+                    // Check if ID exists in JSON first
+                    if let Some(value) = entries_map.get(&id) {
+                         new_entry.offset = offset as u32;
+                         
+                         if value.is_empty() {
+                             // Treat empty string as 0xFF
+                             new_entry.length = 1;
+                             new_values.push(0xFF);
+                         } else {
+                             new_entry.length = value.len() as u32;
+                             new_values.extend(value.as_bytes());
+                         }
                     } else {
-                        let value = reader
-                            .read_array_at::<u8>(value_pos, entry.length as usize)
-                            .unwrap();
-
-                        new_entry.offset = offset as u32;
-                        new_entry.length = value.len() as u32;
-
-                        new_values.extend(value.as_bytes());
+                        // Fallback to original
+                        let byte = reader.read_struct_at::<u8>(value_pos).unwrap();
+                        
+                        if byte != 0xFF {
+                             let value = reader
+                                .read_array_at::<u8>(value_pos, entry.length as usize)
+                                .unwrap();
+                             
+                             new_entry.offset = offset as u32;
+                             new_entry.length = value.len() as u32;
+                             new_values.extend(value);
+                        } else {
+                             // Original was 0xFF
+                             new_entry.offset = offset as u32;
+                             new_entry.length = 1;
+                             new_values.push(0xFF);
+                        }
                     }
                 } else {
                     // Note: Not needed for game reading, just looks good
