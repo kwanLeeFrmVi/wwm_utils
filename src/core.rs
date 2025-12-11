@@ -21,6 +21,14 @@ pub fn unpack_map<P: AsRef<Path>>(path: P) {
     let file_stem = path.file_stem().unwrap().to_str().unwrap();
     let output_dir = Path::new(OUTPUT_DIR).join(file_stem);
 
+    // Remove existing output (file or directory) before unpacking
+    if output_dir.exists() {
+        if output_dir.is_dir() {
+            fs::remove_dir_all(&output_dir).unwrap();
+        } else {
+            fs::remove_file(&output_dir).unwrap();
+        }
+    }
     fs::create_dir_all(&output_dir).unwrap();
 
     let seek_table = reader
