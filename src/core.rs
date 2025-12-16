@@ -141,7 +141,8 @@ pub fn unpack_map<P: AsRef<Path>>(path: P) {
         let text_dir = output_dir.join(TEXT_DIR);
         fs::create_dir_all(&text_dir).unwrap();
 
-        let entries: Vec<_> = string_map.iter().collect();
+        let mut entries: Vec<_> = string_map.iter().collect();
+        entries.sort_unstable_by_key(|(k, _)| **k);
         let shard_count = (entries.len() + ENTRIES_PER_SHARD - 1) / ENTRIES_PER_SHARD;
 
         for shard_idx in 0..shard_count {
